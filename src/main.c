@@ -4,7 +4,15 @@
 #include <linker.h>
 #include <string.h>
 
-void getArgs(int argc, char** argv, char*** input, size_t* input_count, char** output)
+void linkArg(const char* arg , LinkerArgs* linker_arg)
+{
+    if(!strcmp(arg + 2, "no-elf"))
+    {
+        linker_arg->use_elf = false;
+    }
+}
+
+void getArgs(int argc, char** argv, char*** input, size_t* input_count, char** output, LinkerArgs* linker_args)
 {
     size_t last = 0;
     *input = malloc(sizeof(char*) * argc);
@@ -15,11 +23,13 @@ void getArgs(int argc, char** argv, char*** input, size_t* input_count, char** o
     {
         size_t size = strlen(argv[i]);
 
-        if(size == 2 && argv[i][0] == '-')
+        if(size >= 2 && argv[i][0] == '-')
         {
             switch(argv[i][1])
             {
                 case 'o': is_output = true; break;
+                
+                case 'f': linkArg(argv[i], linker_args); break;
 
                 default: break;
             }
@@ -44,14 +54,16 @@ void getArgs(int argc, char** argv, char*** input, size_t* input_count, char** o
 
 int main(int argc, char** argv)
 {
-    LinkerArgs linker_args;
+    LinkerArgs linker_args = {.use_elf = true, .entry = "main"};
     CompilerArgs compiler_args;
 
     char* output;
     size_t input_count;
     char** input;
 
-    getArgs(argc, argv, &input, &input_count, &output);
+    getArgs(argc, argv, &input, &input_count, &output, &linker_args);
+
+    if(output == NULL) { return 1; }
 
     Buffer* buffers = malloc(sizeof(Buffer*) * input_count);
 
@@ -70,7 +82,7 @@ int main(int argc, char** argv)
 
         fclose(fd);
 
-        buffers[i] = obj_compile(source);
+        buffers[i] = obj_compile(source, compiler_args);
 
         free(source);
     }
@@ -86,6 +98,7 @@ int main(int argc, char** argv)
     /* clean up */
     for(size_t i = 0; i < input_count; ++i) { free(buffers[i]); }
 
+    free(input);
     free(buffers);
     free(out);
 }

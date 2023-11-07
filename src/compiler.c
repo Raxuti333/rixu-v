@@ -4,6 +4,7 @@
 #include "robj.h"
 
 #include <buffer.h>
+#include <compiler.h>
 
 #include <stddef.h>
 #include <string.h>
@@ -413,7 +414,7 @@ static inline void compile_data(const char* line, Buffer* label, Buffer* unresol
 /*
     object compiler
 */
-Buffer obj_compile(char* source)
+Buffer obj_compile(char* source, CompilerArgs args)
 {
     Buffer label = bufferCreate(sizeof(Label[16]));
 

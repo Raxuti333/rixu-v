@@ -5,6 +5,6 @@
 
 typedef struct CompilerArgs {} CompilerArgs;
 
-Buffer obj_compile(char* source);
+Buffer obj_compile(char* source, CompilerArgs args);
 
 #endif

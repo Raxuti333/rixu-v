@@ -4,6 +4,7 @@
 #include <buffer.h>
 #include <string.h>
 #include <stdlib.h>
+#include <elf.h>
 
 static inline size_t getLabelAddress(const char* label, const Label* labels, const size_t count)
 {
@@ -113,6 +114,77 @@ Buffer linker(Buffer* objects, size_t count, LinkerArgs* args)
 
     if(args->use_elf)
     {
+        Elf32_Ehdr elf_header = 
+        {
+            .e_ident = 
+            {
+                [EI_MAG0] = 0x7F, 
+
+                [EI_MAG1] = 'E', 
+                [EI_MAG2] = 'L', 
+                [EI_MAG3] = 'F',
+
+                [EI_CLASS] = ELFCLASS32,
+
+                [EI_DATA] = 1,
+
+                [EI_VERSION] = 1,
+
+                [EI_OSABI] = ELFOSABI_SYSV,
+
+                [EI_ABIVERSION] = 0,
+
+                [EI_PAD] = 0,
+            },
+
+            .e_type = ET_EXEC,
+
+            .e_machine = EM_RISCV,
+
+            .e_version = 1,
+
+            .e_entry = (Elf32_Addr)getLabelAddress(args->entry, (Label*)label->buffer, label->last / sizeof(Label)),
+
+            .e_phoff = sizeof(Elf32_Ehdr),
+
+            .e_shoff = 0,
+
+            .e_ehsize = sizeof(Elf32_Ehdr),
+
+            .e_flags = 0,
+
+            .e_phentsize = sizeof(Elf32_Phdr),
+
+            .e_phnum = 1,
+
+            .e_shentsize = sizeof(Elf32_Section),
+
+            .e_shnum = 0,
+
+            .e_shstrndx = 0,
+        };
+        
+        Elf32_Phdr elf_program_header = 
+        {
+            .p_type = PT_LOAD,
+
+            .p_flags = PF_X,
+
+            .p_offset = sizeof(Elf32_Ehdr) + sizeof(Elf32_Phdr),
+
+            .p_vaddr = 0,
+
+            .p_paddr = 0,
+
+            .p_filesz = text->last,
+
+            .p_memsz = text->last,
+
+            .p_align = 0,
+        };
+
+        bufferPush(&binary,(uint8_t*)&elf_header, sizeof(Elf32_Ehdr));
+        bufferPush(&binary, (uint8_t*)&elf_program_header, sizeof(Elf32_Phdr));
         /* TODO create elf header */
     }
 
