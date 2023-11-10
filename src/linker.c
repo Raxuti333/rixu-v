@@ -10,6 +10,7 @@ static inline size_t getLabelAddress(const char* label, const Label* labels, con
 {
     for(size_t i = 0; i < count; ++i)
     {
+        printf("%s\n", labels[i].label);
         if(!strcmp(label, labels[i].label))
         {
             return labels[i].line;
@@ -62,7 +63,7 @@ Buffer linker(Buffer* objects, size_t count, LinkerArgs* args)
     {
         Header* header = (Header*)objects[i]->buffer;
         
-        Label* labels = (Label*)(objects[i]->buffer + sizeof(header));
+        Label* labels = (Label*)(objects[i]->buffer + sizeof(Header));
         UnresolvedAddress* unresolveds = (UnresolvedAddress*)(objects[i]->buffer + header->unresolved_offset);
 
         for(size_t j = 0; j < header->label_count; ++j)

@@ -21,6 +21,7 @@
 #define WRONG_ARGS      2
 #define TOO_LARGE       3
 #define INVALID_INST    4
+#define WRONG_TOKENS    5
 
 /*
     get next line or NULL if last line
@@ -329,6 +330,8 @@ static inline void compile_text(const char* line, Buffer* label, Buffer* unresol
     else if(is_label) 
     {
         Label tmp;
+        memset(&tmp, 0, sizeof(Label));
+        
         tmp.in_data = false;
         tmp.line = (*code)->last;
         memcpy(tmp.label, tokens[0], strlen(tokens[0]));
@@ -348,7 +351,7 @@ static inline void compile_text(const char* line, Buffer* label, Buffer* unresol
         {
 
         case R:
-            if(token_count != 4) { break; }
+            if(token_count != 4) { error = WRONG_TOKENS; break; }
             binary = RbuildInstruction(instruction->base, getRegisterId(tokens[1]), getRegisterId(tokens[2]), getRegisterId(tokens[3]), &error);
         break;
 
@@ -358,33 +361,33 @@ static inline void compile_text(const char* line, Buffer* label, Buffer* unresol
                 binary = IbuildInstruction(instruction->base, 0, 0, 0, &error);
                 break;
             }
-            else if(token_count != 4) { break; }
+            else if(token_count != 4) { error = WRONG_TOKENS; break; }
             binary = IbuildInstruction(instruction->base, getRegisterId(tokens[1]), getRegisterId(tokens[2]), getImmediateValue(tokens[3]), &error);
         break;
 
         case S:
-            if(token_count != 4) { break; }
+            if(token_count != 4) { error = WRONG_TOKENS; break; }
             binary = SbuildInstruction(instruction->base, getRegisterId(tokens[1]), getRegisterId(tokens[2]), getImmediateValue(tokens[3]), &error);
         break;
 
         case B:
-            if(token_count != 4) { break; }
+            if(token_count != 4) { error = WRONG_TOKENS; break; }
             binary = BbuildInstruction(instruction->base, getRegisterId(tokens[1]), getRegisterId(tokens[2]), getImmediateValue(tokens[3]), &error);
         break;
 
         case U:
-            if(token_count != 3) { break; }
+            if(token_count != 3) { error = WRONG_TOKENS; break; }
             binary = UbuildInstruction(instruction->base, getRegisterId(tokens[1]), getImmediateValue(tokens[2]), &error);
         break;
 
         case J:
-            if(token_count != 3) { break; }
+            if(token_count != 3) { error = WRONG_TOKENS; break; }
             binary = JbuildInstruction(instruction->base, getRegisterId(tokens[1]), getImmediateValue(tokens[2]), &error);
         break;
 
         default: error = INVALID_INST; break;
         }
-        
+
         switch(error)
         {
         case LABEL_ARG:
