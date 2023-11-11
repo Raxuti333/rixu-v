@@ -6,18 +6,19 @@
 #include <stdlib.h>
 #include <elf.h>
 
-static inline size_t getLabelAddress(const char* label, const Label* labels, const size_t count)
+#include <stdio.h>
+
+static inline Label* getLabel(const char* label, const Label* labels, const size_t count)
 {
     for(size_t i = 0; i < count; ++i)
     {
-        printf("%s\n", labels[i].label);
         if(!strcmp(label, labels[i].label))
         {
-            return labels[i].line;
+            return (Label*)&labels[i];
         }
     }
 
-    return -1;
+    return NULL;
 }
 
 static inline uint32_t IResolveInstruction(uint32_t base, uint32_t imm)
@@ -31,8 +32,9 @@ static inline uint32_t SResolveInstruction(uint32_t base, uint32_t imm)
 }
 
 static inline uint32_t BResolveInstruction(uint32_t base, uint32_t imm)
-{
-    return (base & 0b1111111111111000001111111) + ((imm & 0b11111) << 7) + (((imm >> 5) & 0b1111111) << 25);
+{                     
+    uint32_t c = (imm & 0x7FE) + ((imm & 0x800) >> 11) + ((imm & 0x1000) >> 1);
+    return (base & 0b1111111111111000001111111) + ((c & 0b11111) << 7) + (((c >> 5) & 0b1111111) << 25);
 }
 
 static inline uint32_t UResolveInstruction(uint32_t base, uint32_t imm)
@@ -95,24 +97,31 @@ Buffer linker(Buffer* objects, size_t count, LinkerArgs* args)
 
         uint32_t* binary = (uint32_t*)(text->buffer + resolve->line);
 
-        size_t imm = getLabelAddress(resolve->label, (Label*)label->buffer, label->last / sizeof(Label));
+        Label* l = getLabel(resolve->label, (Label*)label->buffer, label->last / sizeof(Label));
 
+        if(l == NULL) { continue; }
+
+        /* check if add data offset */
+        uint32_t imm = l->line + ((l->in_data) ? text->last : 0);
+
+        /* rebuild instruction */
         switch(resolve->type)
         {
         case I: *binary = IResolveInstruction(*binary, imm); break;
 
         case S: *binary = SResolveInstruction(*binary, imm); break;
 
-        case B: *binary = SResolveInstruction(*binary, imm); break;
+        case B: *binary = BResolveInstruction(*binary, imm - resolve->line); break;
 
         case U: *binary = UResolveInstruction(*binary, imm); break;
 
-        case J: *binary = JResolveInstruction(*binary, imm); break;
+        case J: *binary = JResolveInstruction(*binary, imm - resolve->line); break;
 
         default: break;
         }
     }
 
+    /* push elf header binary does not work with rv32 emulator */
     if(args->use_elf)
     {
         Elf32_Ehdr elf_header = 
@@ -144,7 +153,7 @@ Buffer linker(Buffer* objects, size_t count, LinkerArgs* args)
 
             .e_version = 1,
 
-            .e_entry = (Elf32_Addr)getLabelAddress(args->entry, (Label*)label->buffer, label->last / sizeof(Label)),
+            .e_entry = (Elf32_Addr)(getLabel(args->entry, (Label*)label->buffer, label->last / sizeof(Label))->line),
 
             .e_phoff = sizeof(Elf32_Ehdr),
 

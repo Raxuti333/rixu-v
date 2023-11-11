@@ -106,6 +106,11 @@ static const Instruction instructions[] =
     /* Jump type instructions */
 
     J_TYPE("jal",   0b1101111),
+
+    /* RV32M */
+
+    R_TYPE("mul",   0b0110011,  0x0,    0x01),
+    R_TYPE("div",   0b0110011,  0x4,    0x01),
 };
 
 /*

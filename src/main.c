@@ -19,7 +19,7 @@ void getArgs(int argc, char** argv, char*** input, size_t* input_count, char** o
 
     bool is_output = false;
 
-    for(size_t i = 0; i < argc; ++i)
+    for(size_t i = 1; i < argc; ++i)
     {
         size_t size = strlen(argv[i]);
 
@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 
     if(output == NULL) { return 1; }
 
-    Buffer* buffers = malloc(sizeof(Buffer*) * input_count);
+    Buffer* buffers = calloc(1, sizeof(Buffer*) * input_count);
 
     /* TODO paralelize */
     for(size_t i = 0; i < input_count; ++i)
@@ -76,7 +76,7 @@ int main(int argc, char** argv)
         size_t size = ftell(fd);
         fseek(fd, 0, SEEK_SET);
 
-        char* source = malloc(size);
+        char* source = calloc(1, size);
 
         size_t tmp = fread(source, 1, size, fd);
 

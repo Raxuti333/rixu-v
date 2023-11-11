@@ -15,7 +15,7 @@
 #define IMPERATIVE_TEXT 0
 #define IMPERATIVE_DATA 1
 
-#define LABEL           UINT32_MAX
+#define LABEL           UINT32_MAX - 1
 #define NO_ERROR        0
 #define LABEL_ARG       1
 #define WRONG_ARGS      2
@@ -182,8 +182,6 @@ static inline uint32_t IbuildInstruction(uint32_t base, uint32_t rd, uint32_t rs
     else if(imm > 4095)
     {
         *error = TOO_LARGE;
-
-        return 0;
     }
     else if(rd > 31)
     {
@@ -247,7 +245,7 @@ static inline uint32_t BbuildInstruction(uint32_t base, uint32_t rs1, uint32_t r
         *error = LABEL_ARG;
     }
 
-    else if(imm > 4095)
+    else if(imm > (1<<13))
     {
         *error = TOO_LARGE;
 
@@ -393,10 +391,15 @@ static inline void compile_text(const char* line, Buffer* label, Buffer* unresol
         case LABEL_ARG:
             
         UnresolvedAddress tmp;
+        memset(&tmp, 0, sizeof(tmp));
+
         tmp.type = instruction->type;
         tmp.line = (*code)->last;
         memcpy(tmp.label, tokens[3], strlen(tokens[3]));
         bufferPush(unresolved, (uint8_t*)&tmp, sizeof(UnresolvedAddress));
+
+        /* fix to allow negative numbers */
+        case TOO_LARGE:
 
         case NO_ERROR:
 
@@ -412,6 +415,44 @@ static inline void compile_text(const char* line, Buffer* label, Buffer* unresol
 static inline void compile_data(const char* line, Buffer* label, Buffer* unresolved, Buffer* data)
 {
     /* TODO create data compiler */
+    size_t size = length(line);
+
+    if(line[0] == '.')
+    {
+        if(size > 8 && !strncmp(&line[1], "string", 6))
+        {
+            bool copying = false;
+            for(size_t i = 9; i < size; ++i)
+            {
+                if(line[i] == '"') 
+                { 
+                    copying = copying ? false : true;
+                    if(!copying) {bufferPush(data, &(char){'\0'}, 1);}
+                }
+
+                else if(copying) { bufferPush(data, &line[i], 1); }
+            }
+        }
+    }
+
+    else
+    {
+        char formated[32];
+        memset(formated, 0, sizeof(formated));
+
+        bool is_label = formater(line, size, formated);
+
+        if(!is_label) { return; }
+
+        Label tmp;
+        memset(&tmp, 0, sizeof(Label));
+        
+        tmp.in_data = true;
+        tmp.line = (*data)->last;
+        memcpy(tmp.label, formated, strlen(formated));
+
+        bufferPush(label, (uint8_t*)&tmp, sizeof(Label));
+    }
 }
 
 /*
@@ -434,10 +475,12 @@ Buffer obj_compile(char* source, CompilerArgs args)
     /* compile loop */
     for(char* line = source; line != NULL; line = next(line))
     {
-        if(line[0] == '.')
-        {
-            size_t size = length(line);
+        if(line[0] == '\0') { break; }
 
+        size_t size = length(line);
+
+        if(size > 1 && line[0] == '.')
+        {
             if(size < 5);
 
             else
